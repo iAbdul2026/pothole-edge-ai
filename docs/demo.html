@@ -37,6 +37,7 @@
   <input id="file" type="file" accept="image/*" disabled>
   <button id="cam" disabled>Start camera</button>
   <button id="bench" disabled>Benchmark 100 frames</button>
+  <button id="bench5" disabled>Benchmark 500 frames</button>
   <button id="stop" disabled>Stop</button>
 </div>
 
@@ -53,7 +54,7 @@ const view = $('view'), vctx = view.getContext('2d'), vid = $('vid'), out = $('o
 const work = Object.assign(document.createElement('canvas'), { width: N, height: N });
 const wctx = work.getContext('2d', { willReadFrequently: true });
 let model = null, runtime = null, running = false, stream = null, benchLeft = 0, lastImg = null;
-let lat = [], frames = 0, benchStart = null;
+let lat = [], frames = 0, benchStart = null, benchLat = [], benchTotal = 100, wake = null;
 
 $('conf').oninput = e => $('confv').textContent = e.target.value;
 const say = s => out.textContent = s;
@@ -121,7 +122,7 @@ $('load').onclick = async () => {
     runtime ??= loadLiteRt('https://cdn.jsdelivr.net/npm/@litertjs/core/wasm/'); await runtime;
     const t = performance.now(); model = await loadAndCompile(file, { accelerator: 'wasm' });
     say(`Loaded ${file} in ${(performance.now() - t).toFixed(0)} ms (CPU / wasm).`);
-    for (const id of ['file', 'cam', 'bench']) $(id).disabled = false;
+    for (const id of ['file', 'cam', 'bench', 'bench5']) $(id).disabled = false;
   } catch (e) { say('Could not load model: ' + (e.message || e)); }
   $('load').disabled = false;
 };
@@ -141,28 +142,41 @@ async function battery() { try { const b = await navigator.getBattery(); return 
 async function loop() {
   while (running) {
     const r = await run(vid); lat.push(r.total); if (lat.length > 60) lat.shift(); frames++;
+    if (benchLeft > 0) benchLat.push(r.total);            // keep every benchmark frame
     if (benchLeft > 0 && --benchLeft === 0) { await finishBench(); break; }
-    say(`Camera running. Frames: ${frames}\nLast: ${r.total.toFixed(0)} ms | median (last 60): ${med(lat).toFixed(0)} ms | about ${(1000 / med(lat)).toFixed(1)} fps\nDetections now: ${r.boxes.length}`);
+    const head = benchLeft > 0 ? `Benchmark ${benchTotal - benchLeft}/${benchTotal} frames\n` : '';
+    say(head + `Camera running. Frames: ${frames}\nLast: ${r.total.toFixed(0)} ms | median (last 60): ${med(lat).toFixed(0)} ms | about ${(1000 / med(lat)).toFixed(1)} fps\nDetections now: ${r.boxes.length}`);
     await new Promise(requestAnimationFrame);
   }
 }
 
 async function finishBench() {
-  const s = lat.slice(-100), secs = (performance.now() - benchStart) / 1000;
+  const s = benchLat, secs = (performance.now() - benchStart) / 1000;
   const b1 = await battery();
   stop();
-  say(`BENCHMARK (100 frames, ${$('model').value})\nMedian ${med(s).toFixed(0)} ms | p95 ${pct(s, .95).toFixed(0)} ms | min ${Math.min(...s).toFixed(0)} | max ${Math.max(...s).toFixed(0)}\nWall time ${secs.toFixed(1)} s\nBattery before: ${window.__b0}\nBattery after: ${b1}\n(Battery drain over 100 frames is tiny. For an energy proxy, repeat for several minutes.)`);
+  say(`BENCHMARK (${s.length} frames, ${$('model').value})\nMedian ${med(s).toFixed(0)} ms | p95 ${pct(s, .95).toFixed(0)} ms | min ${Math.min(...s).toFixed(0)} | max ${Math.max(...s).toFixed(0)}\nWall time ${secs.toFixed(1)} s\nBattery before: ${window.__b0}\nBattery after: ${b1}\n(Compare with the status-bar percentage. Short runs lose only a few percent.)`);
 }
 
 async function startCam() {
   stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 640 } }, audio: false });
-  vid.srcObject = stream; await vid.play(); running = true; lat = []; frames = 0; $('stop').disabled = false; loop();
+  vid.srcObject = stream; await vid.play(); running = true; lat = []; frames = 0; $('stop').disabled = false;
+  try { wake = await navigator.wakeLock.request('screen'); } catch (e) {}   // keep the screen on during long runs
+  loop();
 }
-function stop() { running = false; if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; $('stop').disabled = true; }
+function stop() {
+  running = false; if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; $('stop').disabled = true;
+  try { wake && wake.release(); } catch (e) {} wake = null;
+}
+
+async function startBench(n) {
+  try { window.__b0 = await battery(); benchTotal = n; benchLeft = n; benchLat = []; benchStart = performance.now(); await startCam(); }
+  catch (e) { benchLeft = 0; say('Camera error: ' + (e.message || e)); }
+}
 
 $('cam').onclick = async () => { try { benchLeft = 0; await startCam(); } catch (e) { say('Camera error: ' + (e.message || e) + '\nThe camera needs https:// (or localhost) and your permission.'); } };
-$('bench').onclick = async () => { try { window.__b0 = await battery(); benchLeft = 100; benchStart = performance.now(); await startCam(); } catch (e) { say('Camera error: ' + (e.message || e)); } };
-$('stop').onclick = () => { stop(); say('Stopped.'); };
+$('bench').onclick = () => startBench(100);
+$('bench5').onclick = () => startBench(500);
+$('stop').onclick = () => { benchLeft = 0; stop(); say('Stopped.'); };
 </script>
 </body>
 </html>
