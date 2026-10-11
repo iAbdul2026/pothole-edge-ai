@@ -19,26 +19,28 @@ The central research question is the trade-off between accuracy, latency, energy
 | Path | Description |
 |---|---|
 | docs/demo.html | Browser application: image check, live camera detection and benchmark mode |
-| docs/best.tflite | Fine-tuned YOLOv8n, FP32 export (about 12 MB) |
-| docs/best_int8.tflite | Fine-tuned YOLOv8n, INT8 export (about 3.3 MB) |
+| docs/best.tflite | Fine-tuned YOLOv8n (v1), FP32 export (about 12 MB) |
+| docs/best_int8.tflite | Fine-tuned YOLOv8n (v1), INT8 export (about 3.3 MB) |
 | docs/images/ | Example detections used in this README |
 | COEN872_pothole_yolov8_colab.ipynb | Training, evaluation and export notebook (Google Colab, T4 GPU) |
 
-The docs folder is served through GitHub Pages, which provides the HTTPS origin that mobile browsers require for camera access.
+The docs folder is served through GitHub Pages, which provides the HTTPS origin that mobile browsers require for camera access. The datasets, video clips and extracted frames are not part of this repository.
 
 ## 3. Method
 
 ### 3.1 Data
 
-Public data: the IndiaRDD2022 subset of RDD2022 (Arya et al., 2022), obtained through Roboflow and reduced to a single class, pothole. The split used was 3,140 training, 131 validation and 131 test images (199 labelled instances in the test split).
+Public data: the IndiaRDD2022 subset of RDD2022 (Arya et al., 2022), obtained through Roboflow under the CC BY 4.0 licence, with credit to the RDD2022 authors. The subset has a single class, named 0 in the source. It was treated as a pothole class after a visual check of sample images and a box-shape check (median box aspect ratio 1.59, and only 7.3 percent of boxes with an aspect ratio above 3, so crack-like boxes are rare). The split used was 3,140 training, 131 validation and 131 test images (199 labelled instances in the test split). The subset covers 1,309 base images, and the training split includes augmentation applied by Roboflow.
 
-Local data: video clips recorded on foot or by a passenger, never by a driver, and sampled at about one frame per second. Frames were annotated in Roboflow under one rule: clear holes and broken-surface patches are boxed, and crack-only frames are left empty. The labelling of some large patches on dark asphalt could not be verified against a single consistent rule, which is reported as a limitation.
+Local data: video clips recorded on foot or by a passenger, never by a driver, and sampled at about one frame per second. Frames were annotated by hand in Roboflow under one rule: clear holes and broken-surface patches are boxed, and crack-only frames are left empty. The labelling of some large patches on dark asphalt could not be verified against a single consistent rule, which is reported as a limitation.
 
 | Set | Content |
 |---|---|
-| Local train v1 | 9 clips |
-| Local train v2 | 18 clips, 547 training and 179 validation images |
+| Local train v1 | 9 clips filmed on 3 October 2026, 359 images (287 training, 72 validation) split at random by frame |
+| Local train v2 | 18 clips, 547 training and 179 validation images. The nine new clips were filmed on 8 and 9 October 2026. Six went to training and three whole clips (107 frames) to validation. The validation set also holds the original 72 frames, which share clips with the training images, so it is only partly independent. |
 | Local test | 50 images from clips recorded on 27 and 30 September 2026, 161 boxes, held out from all training |
+
+Local preprocessing was Auto-Orient and a stretch to 640 by 640 pixels, with no augmentation.
 
 ### 3.2 Training
 
@@ -46,7 +48,7 @@ All models start from COCO-pretrained YOLOv8n weights. The public baseline was t
 
 ### 3.3 Compression and export
 
-Models were exported to LiteRT through the Ultralytics exporter. The INT8 variant uses static post-training quantisation of weights and activations. It was calibrated on the local training images (287 images were found, slightly below the 300 recommended by the exporter). An earlier INT8 export calibrated on only four generic images was discarded after the fault was identified.
+Models were exported to LiteRT through the Ultralytics exporter. The proposal named TensorFlow.js, but Ultralytics replaced its tfjs export with LiteRT in version 8.4.83, so the exported .tflite files are run in the browser with LiteRT.js instead. The INT8 variant uses static post-training quantisation of weights and activations. It was calibrated on the local training images (287 images were found, slightly below the 300 recommended by the exporter). An earlier INT8 export calibrated on only four generic images was discarded after the fault was identified.
 
 ### 3.4 In-browser inference
 
@@ -92,7 +94,9 @@ The models served in the demo are configurations C and D.
 | Battery drop over 500 frames (phone) | 2 percentage points | 2 percentage points |
 | Energy estimate from run time (phone) | baseline | about 16 percent lower |
 
-Quantisation reduced local mAP50 by 1.5 points and local F1 by 4.6 points, in exchange for a file 3.7 times smaller and a median latency about 16 percent lower on the phone and about 8 percent lower on the PC. The F1 reduction comes mainly from lower precision, which is consistent with the lower confidence scores of the INT8 model in the example below.
+Quantisation reduced local mAP50 by 1.5 points and local F1 by 4.6 points, in exchange for a file 3.7 times smaller and a median latency about 16 percent lower on the phone and about 8 percent lower on the PC. Both precision (0.335 to 0.281) and recall (0.323 to 0.286) fell, precision by more.
+
+Latency is the full time per frame inside the page: preprocessing, model inference and decoding. It is therefore higher than a model-only timing of the same file.
 
 Measurement conditions: all benchmarks used Chrome, 500 consecutive frames from the device camera pointed at a static scene, and a confidence threshold of 0.25. The phone was unplugged. The laptop was on battery. The phone benchmark was repeated once for FP32, and the first INT8 run on the laptop was repeated because other applications were slowing the machine; the repeated INT8 median agreed with the first (334 and 328 ms).
 
@@ -101,6 +105,8 @@ The energy figure is an estimate, not a measurement. Both runs lost two percenta
 ### 4.3 Public versus local domain gap
 
 The public baseline reaches 0.290 mAP50 on its own test split but only 0.035 on local roads, a drop of more than eight-fold. Fine-tuning on local imagery raises local mAP50 to 0.211 and lowers public mAP50 to 0.042. For the exported FP32 files, public mAP50 falls from 0.269 to 0.029, about nine-fold, which confirms catastrophic forgetting. Evaluating the PyTorch model directly gave the same conclusion. On a further 107 frames from new roads, both v1 and v2 found only 8 percent of the labelled objects, so generalisation beyond the roads in the training clips remains weak.
+
+The gap should not be read as a pure India versus Nigeria effect. Loose public labels, a weak baseline (0.29 mAP50 on its own test split) and differences in camera and viewpoint also contribute.
 
 ### 4.4 Example detections on a phone
 
@@ -130,21 +136,27 @@ Then open http://127.0.0.1:8000/demo.html.
 
 ## 6. Reproducing the experiments
 
-Open the notebook in Google Colab and run it in order. It mounts Google Drive, downloads the datasets from Roboflow, trains and evaluates the models, exports the LiteRT files and runs the evaluations reported above. The Roboflow key must be stored in Colab Secrets under the name ROBOFLOW_API_KEY. No credential is stored in this repository.
+Open the notebook in Google Colab. Run the setup cell first: it installs the packages, mounts Google Drive and downloads the datasets from Roboflow. Then run the sections in order. The Roboflow key must be stored in Colab Secrets under the name ROBOFLOW_API_KEY. No credential is stored in this repository.
+
+The training cells take a long time on a T4. Because library versions and GPU runs differ, rerunning them may give slightly different numbers from those reported above.
 
 ## 7. Ethics and data protection
 
-Video was recorded only by a stationary person or a passenger and never by a driver. Faces and number plates are blurred in every image published here, and raw videos and unblurred frames are not part of this repository. All inference runs on the device and no image is uploaded or stored by the demo. Dataset licences were respected, and the small size of the local test set is disclosed below.
+Video was recorded only on foot or by a passenger, never by a driver. No face or number plate appears in any image published in this repository. The local video clips, extracted frames and annotated datasets are not published; they are held in private Roboflow projects. All inference runs on the device and no image is uploaded or stored by the demo. Dataset licences were respected, and the small size of the local test set is disclosed below.
 
 ## 8. Limitations
 
-The local test set contains 50 images and 161 boxes, so small differences between models are within noise. The set was inspected while several models were compared, so the reported local figures are slightly optimistic. Labelling consistency for large patches on dark asphalt could not be fully verified. Latency was measured on one phone model (Redmi 14C) and one laptop, with a single benchmark per configuration under the stated conditions. The browser runs on the CPU through WebAssembly, and a GPU backend was not evaluated. At about 0.8 frames per second on the phone, the present build is not real time. The INT8 calibration set was slightly smaller than recommended. Weather, lighting and road-surface coverage are incomplete, and the model generalises poorly to roads absent from the training clips.
+The local test set contains 50 images and 161 boxes, so small differences between models are within noise. The set was inspected while several models were compared, so the reported local figures are slightly optimistic. Labelling consistency for large patches on dark asphalt could not be fully verified. The validation set is only partly independent, because 72 of its frames share clips with the training images. Doubling the number of clips (v2) did not improve accuracy on the local test set. Latency was measured on one phone model (Redmi 14C) and one laptop, with a single benchmark per configuration under the stated conditions. The browser runs on the CPU through WebAssembly, and a GPU backend was not evaluated. At about 0.8 frames per second on the phone, the present build is not real time. The INT8 calibration set was slightly smaller than recommended. Weather, lighting and road-surface coverage are incomplete, and the model generalises poorly to roads absent from the training clips.
 
 Optional components described in the proposal, namely a local IndexedDB queue, Firebase synchronisation and a Leaflet dashboard map, are not included in this release.
 
 ## 9. Future work
 
 Reduce the input resolution or evaluate a GPU backend to approach real-time operation on low-cost phones. Collect more varied local data across seasons and road types, and enlarge the test set. Compare with YOLOv8s. Add the geotagged offline queue and synchronisation layer.
+
+## 10. Acknowledgements and use of AI tools
+
+The public data comes from RDD2022 (Arya et al., 2022). An AI assistant (Claude, by Anthropic) was used to help plan the experiments, write and debug the notebook and browser code, and draft this documentation. The data collection, annotation, training runs, measurements on the phone and the decisions reported here are the author's own, and every figure in this document was checked against the saved outputs.
 
 ## References
 
