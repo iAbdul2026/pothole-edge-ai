@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pothole detector (runs in your browser)</title>
+<style>
+  :root { --bg:#fff; --fg:#1b1b1b; --mute:#555; --box:#f2f2f2; --btn:#1b1b1b; --btnfg:#fff; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#151515; --fg:#eee; --mute:#aaa; --box:#222; --btn:#eee; --btnfg:#111; } }
+  body { font:15px/1.5 system-ui,sans-serif; margin:0 auto; padding:1rem; max-width:720px; background:var(--bg); color:var(--fg); }
+  h1 { font-size:1.25rem; margin:.2rem 0; }
+  .note { color:var(--mute); margin:.2rem 0 1rem; }
+  .row { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin:.6rem 0; }
+  button, select { font:inherit; padding:.5rem .8rem; border-radius:4px; border:1px solid var(--fg); }
+  button { background:var(--btn); color:var(--btnfg); cursor:pointer; }
+  button:disabled { opacity:.45; }
+  canvas { width:100%; height:auto; background:var(--box); border-radius:4px; display:block; }
+  pre { background:var(--box); padding:.7rem; border-radius:4px; white-space:pre-wrap; word-break:break-word; min-height:6rem; }
+  video { display:none; }
+</style>
+</head>
+<body>
+<h1>Pothole detector</h1>
+<p class="note">Runs the model on this device. Nothing is uploaded. Frames are stretched to 640x640, as in training.</p>
+
+<div class="row">
+  <label>Model
+    <select id="model">
+      <option value="best_int8.tflite">INT8 (3 MB)</option>
+      <option value="best.tflite">FP32 (12 MB)</option>
+    </select>
+  </label>
+  <label>Confidence <input id="conf" type="range" min="0.05" max="0.9" step="0.05" value="0.25"> <span id="confv">0.25</span></label>
+  <button id="load">Load model</button>
+</div>
+<div class="row">
+  <input id="file" type="file" accept="image/*" disabled>
+  <button id="cam" disabled>Start camera</button>
+  <button id="bench" disabled>Benchmark 100 frames</button>
+  <button id="stop" disabled>Stop</button>
+</div>
+
+<canvas id="view" width="640" height="640"></canvas>
+<video id="vid" playsinline muted></video>
+<pre id="out">Choose a model and press Load model.</pre>
+
+<script type="module">
+import { loadLiteRt, loadAndCompile, Tensor } from 'https://cdn.jsdelivr.net/npm/@litertjs/core/+esm';
+
+const N = 640, A = 8400;
+const $ = id => document.getElementById(id);
+const view = $('view'), vctx = view.getContext('2d'), vid = $('vid'), out = $('out');
+const work = Object.assign(document.createElement('canvas'), { width: N, height: N });
+const wctx = work.getContext('2d', { willReadFrequently: true });
+let model = null, runtime = null, running = false, stream = null, benchLeft = 0, lastImg = null;
+let lat = [], frames = 0, benchStart = null;
+
+$('conf').oninput = e => $('confv').textContent = e.target.value;
+const say = s => out.textContent = s;
+const med = a => { const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
+const pct = (a, p) => { const s = [...a].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(s.length * p))]; };
+
+function pre(src) {
+  wctx.drawImage(src, 0, 0, N, N);                       // stretch, no padding
+  const d = wctx.getImageData(0, 0, N, N).data, f = new Float32Array(3 * N * N), P = N * N;
+  for (let i = 0; i < P; i++) { f[i] = d[4*i] / 255; f[P + i] = d[4*i+1] / 255; f[2*P + i] = d[4*i+2] / 255; }
+  return f;                                               // RGB, channels first, 0..1
+}
+
+async function infer(f) {
+  const t = new Tensor(f, [1, 3, N, N]);
+  const r = await model.run(t);
+  const o = (Array.isArray(r) ? r : Object.values(r))[0];
+  let arr;
+  try { const c = await o.moveTo('wasm'); arr = Float32Array.from(c.toTypedArray()); }
+  catch (e) { arr = Float32Array.from(await o.data()); }
+  try { t.delete && t.delete(); o.delete && o.delete(); } catch (e) {}
+  return arr;
+}
+
+function iou(a, b) {
+  const w = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
+  const h = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+  return w * h / (a.w * a.h + b.w * b.h - w * h + 1e-9);
+}
+
+function decode(a, conf) {
+  let mx = 0; for (let i = 0; i < A; i++) mx = Math.max(mx, a[i], a[A + i]);
+  const s = mx <= 2 ? N : 1;                              // boxes may be 0..1 or in pixels
+  const c = [];
+  for (let i = 0; i < A; i++) {
+    const sc = a[4 * A + i]; if (sc < conf) continue;
+    const w = a[2*A + i] * s, h = a[3*A + i] * s;
+    c.push({ x: a[i] * s - w / 2, y: a[A + i] * s - h / 2, w, h, sc });
+  }
+  c.sort((p, q) => q.sc - p.sc);
+  const keep = []; for (const b of c) if (keep.every(k => iou(k, b) < 0.5)) keep.push(b);
+  return { boxes: keep.slice(0, 50), top: Math.max(...a.subarray(4 * A, 5 * A)), coordScale: s === N ? 'normalised' : 'pixels' };
+}
+
+function draw(src, boxes) {
+  const W = src.videoWidth || src.width, H = src.videoHeight || src.height;
+  view.width = W; view.height = H; vctx.drawImage(src, 0, 0, W, H);
+  const sx = W / N, sy = H / N; vctx.lineWidth = Math.max(2, W / 200); vctx.strokeStyle = '#ffd400'; vctx.fillStyle = '#ffd400';
+  vctx.font = Math.max(12, W / 40) + 'px sans-serif';
+  for (const b of boxes) { vctx.strokeRect(b.x * sx, b.y * sy, b.w * sx, b.h * sy); vctx.fillText(b.sc.toFixed(2), b.x * sx + 3, b.y * sy + Math.max(14, W / 40)); }
+}
+
+async function run(src) {
+  const t0 = performance.now();
+  const f = pre(src), t1 = performance.now();
+  const a = await infer(f), t2 = performance.now();
+  const r = decode(a, parseFloat($('conf').value)), t3 = performance.now();
+  draw(src, r.boxes);
+  return { ...r, total: t3 - t0, pre: t1 - t0, inf: t2 - t1, post: t3 - t2 };
+}
+
+$('load').onclick = async () => {
+  const file = $('model').value; $('load').disabled = true; say('Loading ' + file + ' ...');
+  try {
+    runtime ??= loadLiteRt('https://cdn.jsdelivr.net/npm/@litertjs/core/wasm/'); await runtime;
+    const t = performance.now(); model = await loadAndCompile(file, { accelerator: 'wasm' });
+    say(`Loaded ${file} in ${(performance.now() - t).toFixed(0)} ms (CPU / wasm).`);
+    for (const id of ['file', 'cam', 'bench']) $(id).disabled = false;
+  } catch (e) { say('Could not load model: ' + (e.message || e)); }
+  $('load').disabled = false;
+};
+
+$('file').onchange = async e => {
+  if (!e.target.files[0]) return;
+  lastImg = await createImageBitmap(e.target.files[0]);
+  const r = await run(lastImg);
+  say(`Image check: ${r.boxes.length} detection(s) at confidence >= ${$('conf').value}\n` +
+      `Highest score anywhere in the image: ${r.top.toFixed(3)} (box values were ${r.coordScale})\n` +
+      `Time: preprocess ${r.pre.toFixed(0)} ms, model ${r.inf.toFixed(0)} ms, decode ${r.post.toFixed(0)} ms\n\n` +
+      r.boxes.slice(0, 8).map(b => `score ${b.sc.toFixed(2)}  x ${b.x.toFixed(0)} y ${b.y.toFixed(0)} w ${b.w.toFixed(0)} h ${b.h.toFixed(0)}`).join('\n'));
+};
+
+async function battery() { try { const b = await navigator.getBattery(); return `${(b.level * 100).toFixed(0)}% (${b.charging ? 'charging' : 'on battery'})`; } catch (e) { return 'not available'; } }
+
+async function loop() {
+  while (running) {
+    const r = await run(vid); lat.push(r.total); if (lat.length > 60) lat.shift(); frames++;
+    if (benchLeft > 0 && --benchLeft === 0) { await finishBench(); break; }
+    say(`Camera running. Frames: ${frames}\nLast: ${r.total.toFixed(0)} ms | median (last 60): ${med(lat).toFixed(0)} ms | about ${(1000 / med(lat)).toFixed(1)} fps\nDetections now: ${r.boxes.length}`);
+    await new Promise(requestAnimationFrame);
+  }
+}
+
+async function finishBench() {
+  const s = lat.slice(-100), secs = (performance.now() - benchStart) / 1000;
+  const b1 = await battery();
+  stop();
+  say(`BENCHMARK (100 frames, ${$('model').value})\nMedian ${med(s).toFixed(0)} ms | p95 ${pct(s, .95).toFixed(0)} ms | min ${Math.min(...s).toFixed(0)} | max ${Math.max(...s).toFixed(0)}\nWall time ${secs.toFixed(1)} s\nBattery before: ${window.__b0}\nBattery after: ${b1}\n(Battery drain over 100 frames is tiny. For an energy proxy, repeat for several minutes.)`);
+}
+
+async function startCam() {
+  stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 640 } }, audio: false });
+  vid.srcObject = stream; await vid.play(); running = true; lat = []; frames = 0; $('stop').disabled = false; loop();
+}
+function stop() { running = false; if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; $('stop').disabled = true; }
+
+$('cam').onclick = async () => { try { benchLeft = 0; await startCam(); } catch (e) { say('Camera error: ' + (e.message || e) + '\nThe camera needs https:// (or localhost) and your permission.'); } };
+$('bench').onclick = async () => { try { window.__b0 = await battery(); benchLeft = 100; benchStart = performance.now(); await startCam(); } catch (e) { say('Camera error: ' + (e.message || e)); } };
+$('stop').onclick = () => { stop(); say('Stopped.'); };
+</script>
+</body>
+</html>
