@@ -1,36 +1,43 @@
-# Smartphone-Based Edge AI for Real-Time Pothole and Road-Defect Detection on Nigerian Roads
+<h1 align="center">Smartphone-Based Edge AI for Real-Time Pothole and Road-Defect Detection on Nigerian Roads</h1>
 
-*A measured comparison of FP32 and INT8 in-browser inference on a low-cost phone*
+<p align="center"><em>A measured comparison of FP32 and INT8 in-browser inference on a low-cost phone</em></p>
 
-Case Study 6, COEN872: AI Systems Development, Department of Computer Engineering, Ahmadu Bello University, Zaria (M.Sc. 2025/26)
+| | |
+|:--|:--|
+| **Course** | Case Study 6, COEN872: AI Systems Development |
+| **Programme** | M.Sc. 2025/26, Department of Computer Engineering, Ahmadu Bello University, Zaria |
+| **Author** | Abdulhamid Musa (Reg. No. P25EGCP8002) |
+| **Live demo** | [Open in Chrome](https://iabdul2026.github.io/pothole-edge-ai/demo.html) |
+| **Source code** | [github.com/iAbdul2026/pothole-edge-ai](https://github.com/iAbdul2026/pothole-edge-ai) |
 
-Author: Abdulhamid Musa (Reg. No. P25EGCP8002)
+> [!NOTE]
+> **Project status.** A working proof of concept that runs a compressed YOLOv8n detector entirely inside a phone browser. It processes about 0.7 to 0.8 frames per second on a Redmi 14C, so it is not a real-time system, and its output (local F1 of about 0.33) needs human review.
 
-Source code and notebook: https://github.com/iAbdul2026/pothole-edge-ai
-
-Live demo (open in Chrome): https://iabdul2026.github.io/pothole-edge-ai/demo.html
+**Quick links:** [Run the demo](#running-the-demo) · [Reproduce the experiments](#reproducing-the-experiments) · [Repository contents](#repository-contents) · [References](#references)
 
 ## Contents
 
-1. [Abstract](#abstract)
-2. [Introduction and Justification](#1-introduction-and-justification)
-3. [Value Proposition and Expected Impact](#2-value-proposition-and-expected-impact)
-4. [Technical Solution](#3-technical-solution)
-5. [Demonstration and Results](#4-demonstration-and-results)
-6. [Scalability Plan](#5-scalability-plan)
-7. [Product and Service Marketability](#6-product-and-service-marketability)
-8. [Conclusion, Limitations and Future Work](#7-conclusion-limitations-and-future-work)
-9. [Running the demo](#running-the-demo)
-10. [Reproducing the experiments](#reproducing-the-experiments)
-11. [Repository contents](#repository-contents)
-12. [Use of AI tools](#use-of-ai-tools)
-13. [References](#references)
+- [Abstract](#abstract)
+- [Introduction and Justification](#1-introduction-and-justification)
+- [Value Proposition and Expected Impact](#2-value-proposition-and-expected-impact)
+- [Technical Solution](#3-technical-solution)
+- [Demonstration and Results](#4-demonstration-and-results)
+- [Scalability Plan](#5-scalability-plan)
+- [Product and Service Marketability](#6-product-and-service-marketability)
+- [Conclusion, Limitations and Future Work](#7-conclusion-limitations-and-future-work)
+- [Running the demo](#running-the-demo)
+- [Reproducing the experiments](#reproducing-the-experiments)
+- [Repository contents](#repository-contents)
+- [Use of AI tools](#use-of-ai-tools)
+- [References](#references)
 
 ## Abstract
 
-Pothole and road-surface damage degrade vehicle safety and impose recurrent maintenance costs, yet in Nigeria defects are still reported through ad hoc complaints and sporadic inspection drives. This study investigates whether a compressed object detector can run entirely inside a smartphone web browser, without installation or a server and, once loaded, without a live connection, and quantifies the accuracy, latency, energy and model-size trade-offs involved.
+Pothole and road-surface damage degrade vehicle safety and impose recurrent maintenance costs, yet in Nigeria defects are still reported through ad hoc complaints and sporadic inspection drives. This study investigates whether a compressed object detector can run entirely inside a smartphone web browser, without installation or a server and, once loaded, without a live connection, and quantifies the accuracy, latency and model-size trade-offs involved, with energy estimated from run time and not measured.
 
-A YOLOv8n detector, pre-trained on COCO and then on an India subset of RDD2022, was fine-tuned on locally filmed road video from Zaria and Kano, exported as a LiteRT FP32 model and a statically quantised INT8 model, and deployed with LiteRT.js on a low-cost Redmi 14C. On a held-out set of 50 local images, fine-tuning raised mean average precision at an IoU of 0.5 (mAP50) from 0.035 to 0.211, while mAP50 on the public test split fell from 0.290 to 0.042, an instance of catastrophic forgetting. INT8 quantisation reduced the model file by a factor of 3.7 and the median per-frame time by about 16 percent on the phone, at a cost of 1.5 mAP50 points. The phone sustains between 0.7 and 0.8 frames per second, so the prototype is a proof of concept and not a real-time system. Because the local test set is small (161 boxes), all conclusions are qualified accordingly.
+A YOLOv8n detector, pre-trained on COCO and then on an India subset of RDD2022, was fine-tuned on locally filmed road video from Zaria and Kano, exported as a LiteRT FP32 model and a statically quantised INT8 model, and deployed with LiteRT.js on a low-cost Redmi 14C.
+
+On a held-out set of 50 local images, fine-tuning raised mean average precision at an IoU of 0.5 (mAP50) from 0.035 to 0.211, while mAP50 on the public test split fell from 0.290 to 0.042, an instance of catastrophic forgetting. INT8 quantisation reduced the model file by a factor of 3.7 and the median per-frame time by about 16 percent on the phone, at an apparent cost of 1.5 mAP50 points that was not tested for significance. The phone sustains between 0.7 and 0.8 frames per second, so the prototype is a proof of concept and not a real-time system. Because the local test set is small (161 boxes), all conclusions are qualified accordingly.
 
 **Keywords:** edge AI; object detection; YOLOv8; post-training quantisation; domain shift; catastrophic forgetting; pothole detection; Nigeria
 
@@ -38,7 +45,7 @@ A YOLOv8n detector, pre-trained on COCO and then on an India subset of RDD2022, 
 
 | Research question | Finding | How firm it is |
 |---|---|---|
-| RQ1 Compression trade-off | INT8 is 3.7 times smaller (12.3 to 3.3 MB) and about 16% faster per frame on the Redmi 14C (1196 against 1422 ms). It costs 1.5 mAP50 points and 4.6 F1 points. | Size is exact. Speed rests on one 500-frame run per model. Energy is estimated from run time, not measured. |
+| RQ1 Compression trade-off | INT8 is 3.7 times smaller (12.3 to 3.3 MB) and about 16% faster per frame on the Redmi 14C (1196 against 1422 ms). It costs 1.5 mAP50 points and 4.6 F1 points. | Size is exact. Speed rests on one 500-frame run per model. Energy is estimated from run time, not measured. The accuracy differences were not tested for significance. |
 | RQ2 Domain gap | The public baseline falls from 0.290 mAP50 on its own test split to 0.035 on local roads (more than eight-fold). Local fine-tuning lifts it to 0.211. | Moderate. 50 images, 161 boxes. The gap is mixed with label quality and camera differences. |
 | RQ3 Retention | Fine-tuning cuts public mAP50 from 0.290 to 0.042. A frozen backbone keeps 0.178 but gains only 0.121 locally. Doubling the local clips gave no gain. | Single runs, no seed variance. The v1 and v2 models cannot be told apart statistically. |
 | Readiness | About 0.7 to 0.8 frames per second and a local F1 of about 0.33: a working proof of concept whose output needs human review. | Measured directly, on one phone and one laptop. |
@@ -61,11 +68,11 @@ Recognising a pothole is a visual pattern-recognition problem with large intra-c
 
 ### 1.4 Gaps addressed
 
-First, the public benchmark RDD2022 does not include Nigerian roads, so the size of the domain gap there is unmeasured. Second, reported mobile results seldom pair accuracy with in-browser latency and energy for FP32 and INT8 variants of the same detector on a low-cost phone. Third, the interaction between local fine-tuning and retention of benchmark accuracy is rarely reported for road damage. The full related-work discussion is in the report.
+First, the public benchmark RDD2022 does not include Nigerian roads, so the size of the domain gap there is unmeasured. Second, reported mobile results seldom pair accuracy with in-browser latency and an energy estimate for FP32 and INT8 variants of the same detector on a low-cost phone. Third, the interaction between local fine-tuning and retention of benchmark accuracy is rarely reported for road damage. The full related-work discussion is in the report.
 
 ### 1.5 Aim and research questions
 
-The aim is to build and evaluate a smartphone-based, in-browser pothole detector suited to low-connectivity conditions. The word real-time in the title follows the wording of the case study; at the measured speed of about 0.7 to 0.8 frames per second (Section 4.6) the prototype does not reach it.
+The aim is to build and evaluate a smartphone-based, in-browser pothole detector suited to low-connectivity conditions. The word real-time in the title follows the wording of the case study; at the measured speed of about 0.7 to 0.8 frames per second ([Section 4.6](#46-compression-trade-off-rq1)) the prototype does not reach it.
 
 - **RQ1 (trade-off).** What are the trade-offs in accuracy, latency, energy and model size between a 32-bit floating-point (FP32) and an 8-bit quantised (INT8) version of a lightweight detector running on a low-cost phone?
 - **RQ2 (domain gap).** How large is the accuracy gap between a public benchmark subset and locally filmed Nigerian road imagery, and how much of it does local fine-tuning close?
@@ -79,7 +86,7 @@ The aim is to build and evaluate a smartphone-based, in-browser pothole detector
 
 **Expected impact.** Inexpensive evidence on where defects are densest could help agencies rank interventions. This is a hypothesis and not a result: the project demonstrates the detection step only. The current accuracy (an F1 score of about 0.33 on local roads) implies that the output should support human review and not replace inspection.
 
-**Improvement over existing alternatives.** Manual complaint channels are slow and unstructured. Cloud-based vision systems depend on constant connectivity and typically incur per-request or licensing costs. The approach taken here removes the connectivity dependence and the per-request cost, at the price of a smaller model with lower accuracy and a lower frame rate.
+**Improvement over existing alternatives.** Manual complaint channels are slow and unstructured. Some commercial services rate images in the cloud after upload and charge by assessment or subscription ([Section 6](#6-product-and-service-marketability), competitive landscape). The approach taken here removes the upload step and the per-assessment fee, at the price of a smaller model with lower accuracy and a lower frame rate.
 
 ## 3. Technical Solution
 
@@ -129,25 +136,29 @@ The contribution is not a new architecture. It is a measured, reproducible compa
 ### 3.8 Ethics and potential bias
 
 - **Dataset bias.** The public data come from India, with different cameras, road types and labelling conventions, and the local data come from a few days of filming on a limited set of roads in Zaria and Kano in dry conditions. The model is likely to be biased toward the roads and viewpoints it has seen, and the results show it.
-- **Privacy.** All video was recorded by the author on foot. Local frames and clips are not published; they are held in private Roboflow projects. The original proposal commits to blurring faces and number plates before storage, and a review of the local frames for identifiable faces and plates was still pending at the time of writing. All inference runs on the device and no image is uploaded by the demo.
+- **Privacy.** All video was recorded by the author on foot. Six local test frames with model detections (shown in the notebook output) and the demo screenshots are published in this GitHub repository. The video clips remain in the author's private Google Drive, and the full set of extracted frames, labelled in Roboflow, remains in private Roboflow projects. The original proposal commits to blurring faces and number plates before storage. The author reviewed the local frames and found no identifiable faces or legible number plates, so no blurring was applied. All inference runs on the device and no image is uploaded by the demo.
 - **Licensing and attribution.** The public data are used under the CC BY 4.0 licence with credit to the RDD2022 authors.
 
 ## 4. Demonstration and Results
 
 ### 4.1 The prototype
 
-The prototype is a single web page, `docs/demo.html`, served over HTTPS from GitHub Pages together with two model files, `best.tflite` (FP32, about 12 MB) and `best_int8.tflite` (about 3.3 MB). The user selects a model, loads it, and then either selects a photograph, starts the live camera, or runs a benchmark of 100 or 500 camera frames. Detections are drawn as boxes with their scores, and the page reports the time spent in preprocessing, model execution and decoding, together with the battery level before and after a benchmark. It was tested in Chrome on a Windows laptop and on a Redmi 14C, a low-cost Android phone. The page is the detection component of the road-condition mapper named in the case study; the geotagged queue, synchronisation and map are not implemented (Section 3.1).
+The prototype is a single web page, `docs/demo.html`, served over HTTPS from GitHub Pages together with two model files, `best.tflite` (FP32, about 12 MB) and `best_int8.tflite` (about 3.3 MB). The user selects a model, loads it, and then either selects a photograph, starts the live camera, or runs a benchmark of 100 or 500 camera frames. Detections are drawn as boxes with their scores, and the page reports the time spent in preprocessing, model execution and decoding, together with the battery level before and after a benchmark. It was tested in Chrome on a Windows laptop and on a Redmi 14C, a low-cost Android phone. The page is the detection component of the road-condition mapper named in the case study; the geotagged queue, synchronisation and map are not implemented ([Section 3.1](#31-system-architecture)).
 
 ### 4.2 Evaluation protocol
 
-Accuracy was measured on two held-out sets: the public test split (131 images, 199 instances) and the local test set of 50 images (161 boxes), whose clips share no frames with any training data. The metrics are precision, recall, F1 score and mAP50, where a detection is a true positive if its IoU with an unmatched ground-truth box is at least 0.5. Because the task has a single class, mAP50 equals the average precision at IoU 0.5. To judge whether differences between models are real, a paired bootstrap over the 50 test images was used (2,000 resamples, F1 at a fixed confidence of 0.25). Latency was measured inside the page as the full time per frame, covering preprocessing, inference and decoding, over 500 consecutive camera frames pointed at a static scene, with a confidence threshold of 0.25. Chrome was used throughout, and the phone and the laptop were both unplugged. The local test set was kept untouched during training but was inspected while several models were compared, so the local figures are slightly optimistic.
+- **Test sets.** Accuracy was measured on two held-out sets: the public test split (131 images, 199 instances) and the local test set of 50 images (161 boxes), whose clips share no frames with any training data.
+- **Metrics.** The metrics are precision, recall, F1 score and mAP50, where a detection is a true positive if its IoU with an unmatched ground-truth box is at least 0.5. Because the task has a single class, mAP50 equals the average precision at IoU 0.5.
+- **Significance.** To judge whether differences between models are real, a paired bootstrap over the 50 test images was used (2,000 resamples, F1 at a fixed confidence of 0.25).
+- **Latency.** Latency was measured inside the page as the full time per frame, covering preprocessing, inference and decoding, over 500 consecutive camera frames pointed at a static scene, with a confidence threshold of 0.25. Chrome was used throughout, and the phone and the laptop were both unplugged.
+- **Caveat.** The local test set was kept untouched during training but was inspected while several models were compared, so the local figures are slightly optimistic.
 
 ### 4.3 Accuracy
 
 **Table 2.** Accuracy of the PyTorch weights on the local and public test sets.
 
 | Model | Local mAP50 | Local F1 | Public mAP50 |
-|---|---|---|---|
+|:---|---:|---:|---:|
 | Public baseline | 0.035 | 0.098 | 0.290 |
 | Fine-tuned v1 (9 clips) | 0.211 | 0.325 | 0.042 |
 | Gentle fine-tune (freeze=10) | 0.121 | 0.187 | 0.178 |
@@ -156,7 +167,7 @@ Accuracy was measured on two held-out sets: the public test split (131 images, 1
 **Table 3.** Accuracy of the exported LiteRT configurations A to D, the configurations compared in the browser.
 
 | Config | Public mAP50 | Local mAP50 | Local precision | Local recall | Local F1 |
-|---|---|---|---|---|---|
+|:---|---:|---:|---:|---:|---:|
 | A, public FP32 | 0.269 | 0.043 | 0.082 | 0.131 | 0.101 |
 | B, public INT8 | 0.250 | 0.063 | 0.091 | 0.124 | 0.105 |
 | C, fine-tuned FP32 | 0.029 | 0.230 | 0.335 | 0.323 | 0.329 |
@@ -174,12 +185,12 @@ On the 50 local test images the 18-clip model (v2) did not improve on v1 (mAP50 
 
 ### 4.6 Compression trade-off (RQ1)
 
-The models served in the demo are configurations C and D. The frame rates in Table 4 are 500 frames divided by the wall time of the run. The FP32 file in Table 4 scores 0.230 local mAP50 against 0.211 for the PyTorch weights of the same model in Table 2; the reason was not investigated, and Section 3.4 notes that validation differs slightly between Ultralytics releases.
+The models served in the demo are configurations C and D. The frame rates in Table 4 are 500 frames divided by the wall time of the run. The FP32 file in Table 4 scores 0.230 local mAP50 against 0.211 for the PyTorch weights of the same model in Table 2; the reason was not investigated, and [Section 3.4](#34-training-and-evaluation-protocol) notes that validation differs slightly between Ultralytics releases.
 
 **Table 4.** FP32 versus INT8 (configurations C and D): accuracy, size, latency and energy.
 
 | | FP32 | INT8 |
-|---|---|---|
+|:---|:---:|:---:|
 | Local mAP50 | 0.230 | 0.215 |
 | Local F1 | 0.329 | 0.283 |
 | File size | 12.3 MB | 3.3 MB (3.7 times smaller) |
@@ -190,14 +201,19 @@ The models served in the demo are configurations C and D. The frame rates in Tab
 | Battery drop over 500 frames (phone) | 2 percentage points | 2 percentage points |
 | Energy estimate from run time (phone) | baseline | about 16 percent lower |
 
-Quantisation cost 1.5 points of local mAP50 and 4.6 points of local F1, in exchange for a file 3.7 times smaller and a median time per frame about 16 percent shorter on the phone and about 8 percent shorter on the laptop. Both precision (0.335 to 0.281) and recall (0.323 to 0.286) fell, precision by more. INT8 kept 93 percent of the FP32 local mAP50 and 86 percent of its F1 at 27 percent of the file size. For this setting the size saving is arguably the more consequential benefit, because the 9.0 MB difference matters most on slow connections. The speed gain is real but modest: at about 1.2 s per frame neither model comes near real time.
+Quantisation cost 1.5 points of local mAP50 and 4.6 points of local F1, in exchange for a file 3.7 times smaller and a median time per frame about 16 percent shorter on the phone and about 8 percent shorter on the laptop. Both precision (0.335 to 0.281) and recall (0.323 to 0.286) fell, precision by more.
+
+> [!NOTE]
+> These accuracy differences were not tested for significance: no bootstrap was run for C against D, and the unexplained 1.9-point gap between the PyTorch and FP32 LiteRT scores (0.211 and 0.230) is larger than the 1.5-point INT8 difference, so the accuracy cost should be read as indicative.
+
+INT8 kept 93 percent of the FP32 local mAP50 and 86 percent of its F1 at 27 percent of the file size. For this setting the size saving is arguably the more consequential benefit, because the 9.0 MB difference matters most on slow connections. The speed gain is real but modest: at about 1.2 s per frame neither model comes near real time.
 
 The energy figure is an estimate and not a measurement: both runs lost two percentage points of battery and the readout has a resolution of one percentage point, so the two models cannot be separated by battery drain. The estimate assumes similar power draw in both runs and uses the ratio of run times. Each final 500-frame phone benchmark was run once per model, so no uncertainty can be given for the phone timings. On the laptop, the first INT8 run was repeated because other applications were slowing the machine (334 ms, then 328 ms); the repeat is reported.
 
 **Table 5.** Redmi 14C benchmark runs: earlier 100-frame pilots (reported for transparency, not used in any comparison) and the final 500-frame runs.
 
 | Run | Model | Frames | Median (ms) | p95 (ms) | Min to max (ms) | Wall time (s) |
-|---|---|---|---|---|---|---|
+|:---|:---|---:|---:|---:|:---:|---:|
 | Pilot | FP32 | 100 | 1575 | 4736 | 1413 to 10537 | 194.0 |
 | Pilot | INT8 | 100 | 1525 | 1562 | 1368 to 1581 | 145.2 |
 | Final | FP32 | 500 | 1422 | 1481 | 1387 to 2345 | 722.7 |
@@ -209,16 +225,29 @@ During the pilots the on-page battery field showed 100 percent (charging), which
 
 Both images show the same pothole, photographed from the same position with a Redmi 14C after the final benchmark runs, at a confidence threshold of 0.4.
 
-| FP32 | INT8 |
-|---|---|
-| ![FP32 detection](docs/images/fp32_pothole_conf0.4.png) | ![INT8 detection](docs/images/int8_pothole_conf0.4.png) |
-| Score 0.84 | Score 0.50 |
+<table align="center">
+  <tr>
+    <th align="center">FP32</th>
+    <th align="center">INT8</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/images/fp32_pothole_conf0.4.png" alt="FP32 model detecting a pothole on the Redmi 14C, score 0.84" width="320"></td>
+    <td align="center"><img src="docs/images/int8_pothole_conf0.4.png" alt="INT8 model detecting the same pothole on the Redmi 14C, score 0.50" width="320"></td>
+  </tr>
+  <tr>
+    <td align="center">Score 0.84</td>
+    <td align="center">Score 0.50</td>
+  </tr>
+</table>
 
 Both models detect the pothole at the chosen threshold, but the INT8 model reports a markedly lower confidence. A stricter threshold of about 0.6 would remove the INT8 detection and keep the FP32 one, so the operating threshold should be chosen per model. These images illustrate behaviour on a single pothole and are not evidence of overall accuracy. In earlier close-up views, where the pothole filled the whole frame, scores were only 0.26 to 0.30, which indicates sensitivity to viewing distance.
 
 ### 4.8 Threats to validity
 
-Internal validity is limited by the small local test set (50 images from five clips, 161 boxes), by its repeated inspection during model comparison, by a validation set that is only partly independent, and by single runs without seed variance. External validity is limited by one phone model, one laptop, dry-season filming on a small set of roads in Zaria and Kano, and a labelling rule that was hard to apply consistently to large patches. Construct validity is limited for energy, which is inferred from run time and not measured. At about 0.7 to 0.8 frames per second on a low-cost phone, the present build is not real time.
+- **Internal validity** is limited by the small local test set (50 images from five clips, 161 boxes), by its repeated inspection during model comparison, by a validation set that is only partly independent, and by single runs without seed variance or a significance test of the FP32 to INT8 difference.
+- **External validity** is limited by one phone model, one laptop, dry-season filming on a small set of roads in Zaria and Kano, and a labelling rule that was hard to apply consistently to large patches.
+- **Construct validity** is limited for energy, which is inferred from run time and not measured.
+- **Speed.** At about 0.7 to 0.8 frames per second on a low-cost phone, the present build is not real time.
 
 ## 5. Scalability Plan
 
@@ -244,25 +273,50 @@ Internal validity is limited by the small local test set (50 images from five cl
 
 **Funding and revenue.** Possible revenue streams are per-agency dashboard subscriptions and grant funding tied to road-safety programmes. The rationale for demand exists at several levels: the FRSC recorded 5,289 deaths in 2025 (Ariyo, 2026); the World Health Organization reports 1.19 million road deaths a year worldwide (World Health Organization, 2023a); and federal officials state that more than 35,000 km of roads cannot be financed from annual budgets alone (AllAfrica, 2025b). No funder or agency was approached and no price was tested, so these are arguments for demand and not evidence of it.
 
-**Competitive landscape.** The alternatives are commercial inspection systems that depend on constant connectivity and are typically costly, and the manual complaint channels described in Section 1. Research prototypes for smartphone pothole detection exist (Amri & Kusuma, 2025), but a detailed survey of commercial competitors was not carried out. The proposed differentiator is a zero-install, on-device approach that tolerates poor connectivity during inference and has been evaluated on local roads. Its main weaknesses today are modest accuracy and a low frame rate on a budget phone.
+**Competitive landscape.** Table 7 summarises three smartphone-based services found in vendor material and app-store listings in October 2026, in addition to the manual complaint channels described in [Section 1](#1-introduction-and-justification). They are described as their publishers describe them. None was tested in this study, and the sources reviewed give no accuracy measured on Nigerian roads, so the comparison concerns approach and cost and not detection quality.
+
+**Table 7.** Smartphone-based road assessment services, as described by their publishers.
+
+| Service | Approach | Connectivity and price |
+|---|---|---|
+| Michelin Better Roads | An Android phone on the windscreen records images, which staff upload daily. AI rates each 10-foot section on scales of 1 to 5 and 0 to 100, and results are delivered on a mapping platform within about 7 days (Michelin Mobility Intelligence, n.d.). | Cloud processing after upload. The vendor advises budgeting about US$10,000 for a 100 centreline-mile network, 75% for the assessment and 25% for the annual subscription. |
+| vialytics | An iPhone app on the windscreen takes a photo every four metres. Images are anonymised and analysed for 15 damage classes, and a web system supports planning and work orders (vialytics GmbH, 2024). | Cloud analysis, with uploads when the phone is on Wi-Fi. iPhone only. No price was found in the sources reviewed. |
+| Pothole Guard (RoadBounce) | An Android app that detects potholes with on-device AI while the phone is mounted in a vehicle, and produces geotagged PDF reports (RoadBounce, 2026). | On the device, and described as working offline during a survey. In-app purchases are listed and no price is stated. |
+
+Two observations follow. First, the cloud-processed services require images to be uploaded before they are rated, whereas Pothole Guard is described as detecting on the device without a connection, so on-device operation is not unique to this project. Second, the distinctive elements of this study are delivery as a web page without installation and a measured, reproducible comparison of FP32 and INT8 models on Nigerian roads. Its weaknesses are a local F1 of about 0.33, a speed of 0.7 to 0.8 frames per second and the absence of a dashboard, so a pilot against an agency survey would be needed before any advantage over these services could be claimed.
 
 **Go-to-market.** The plan starts with a single-LGA pilot using locally collected data, followed by outreach to neighbouring authorities. The pilot's first objective would be to measure accuracy against an agency's own survey of the same roads. The Zuba-Kaduna-Zaria corridor, with its recorded crash burden (Leadership, 2026), is a natural candidate for a first evaluation.
 
-**Costs.** Development cost so far consisted of the author's time, a free Colab GPU and free hosting. Pilot costs would consist mainly of data collection, labelling time and dashboard hosting, none of which was measured. In a crowdsourced model users bring their own phones, so device cost is not borne by the service. As an indication of device capability, the phone used in this study is a low-cost model.
+**Costs.** Development cost so far consisted of the author's time, a free Colab GPU and free hosting. Table 8 gives an indicative cost for a single-LGA pilot. The quantities are assumptions of this report: two data collectors and one labeller, each engaged for one month at the national minimum wage of NGN 70,000 per month (WageIndicator Foundation, 2026), which is a lower bound. The unit prices are published prices.
+
+**Table 8.** Indicative cost of a single-LGA pilot, in naira (assumed quantities, published unit prices).
+
+| Item | Basis | Estimate (NGN) |
+|:---|:---|---:|
+| Data collection | 2 collectors for 1 month at 70,000 per month | 140,000 |
+| Labelling and review | 1 person for 1 month at 70,000 per month | 70,000 |
+| Mobile data | 2 phones, each on one 1.8 GB monthly plan at 1,500 (TechCabal, 2025) | 3,000 |
+| Training, labelling tool and hosting | Free tiers of Colab, Roboflow and GitHub Pages (Google, n.d.; Roboflow, n.d.; GitHub, n.d.) | 0 |
+| **Total** | | **213,000** |
+
+The estimate excludes transport, supervision, the author's time, the dashboard build and tooling for blurring faces and number plates. It assumes that collectors use phones they already own and that the free tiers remain available; Colab, for example, states that its resources are not guaranteed (Google, n.d.).
 
 ## 7. Conclusion, Limitations and Future Work
 
 ### 7.1 Conclusion
 
-In answer to RQ1, INT8 quantisation reduced the model from 12.3 MB to 3.3 MB and the median per-frame time by about 16 percent on a Redmi 14C, at a cost of 1.5 mAP50 points and 4.6 F1 points; energy was estimated from run time (about 16 percent lower) but not measured. In answer to RQ2, the public baseline lost more than eight-fold in mAP50 on local roads, and fine-tuning raised local mAP50 from 0.035 to 0.211. In answer to RQ3, that gain came at the cost of public accuracy (0.290 to 0.042), a gentler regime retained more (0.178) but gained less locally (0.121), and doubling the number of local clips gave no measurable improvement. The prototype shows that in-browser detection is feasible on a low-cost phone, at about 0.7 to 0.8 frames per second and with modest accuracy.
+In answer to RQ1, INT8 quantisation reduced the model from 12.3 MB to 3.3 MB and the median per-frame time by about 16 percent on a Redmi 14C, at an apparent cost of 1.5 mAP50 points and 4.6 F1 points (not tested for significance); energy was estimated from run time (about 16 percent lower) but not measured. In answer to RQ2, the public baseline lost more than eight-fold in mAP50 on local roads, and fine-tuning raised local mAP50 from 0.035 to 0.211. In answer to RQ3, that gain came at the cost of public accuracy (0.290 to 0.042), a gentler regime retained more (0.178) but gained less locally (0.121), and doubling the number of local clips gave no measurable improvement. The prototype shows that in-browser detection is feasible on a low-cost phone, at about 0.7 to 0.8 frames per second and with modest accuracy.
 
 On this evidence, INT8 is the more sensible default for the browser demo, chiefly because of the 9.0 MB smaller download on slow connections, while FP32 remains the choice where each detection should score as high as possible. Because quantisation shifts the score distribution, the confidence threshold should be set separately for each model. This recommendation is a judgement drawn from one phone and one test set, not a tested deployment result.
 
 ### 7.2 Limitations
 
-The local test set has 50 images and 161 boxes from five clips, so neighbouring frames are correlated and small differences between models are within noise, and it was inspected while several models were compared. Labelling consistency for large patches on dark asphalt could not be fully verified. The validation set is only partly independent, because 72 of its frames share clips with the training images. Latency was measured on one phone model and one laptop, with one final benchmark per configuration (500 frames) and two short pilot runs on the phone. The browser runs on the CPU, a GPU backend was not evaluated, and offline operation after the first load was not implemented or tested. The INT8 calibration set was slightly smaller than recommended. Weather, lighting and road-surface coverage are incomplete, and the local clips come from Zaria and Kano only. Compression was limited to post-training INT8 quantisation of one detector, YOLOv8n. The offline queue, synchronisation layer and map described in the proposal were not built. Finally, no national statistic linking potholes to crashes was found, so the road-safety motivation is argued from the condition of the network.
+- **Test data.** The local test set has 50 images and 161 boxes from five clips, so neighbouring frames are correlated and small differences between models are within noise, and it was inspected while several models were compared. Labelling consistency for large patches on dark asphalt could not be fully verified. The validation set is only partly independent, because 72 of its frames share clips with the training images.
+- **Measurements.** Latency was measured on one phone model and one laptop, with one final benchmark per configuration (500 frames) and two short pilot runs on the phone. The browser runs on the CPU, a GPU backend was not evaluated, and offline operation after the first load was not implemented or tested. The INT8 calibration set was slightly smaller than recommended.
+- **Scope.** Weather, lighting and road-surface coverage are incomplete, and the local clips come from Zaria and Kano only. Compression was limited to post-training INT8 quantisation of one detector, YOLOv8n. The offline queue, synchronisation layer and map described in the proposal were not built.
+- **Evidence.** Finally, no national statistic linking potholes to crashes was found, so the road-safety motivation is argued from the condition of the network.
 
-**Table 7.** Differences between the proposal and the delivered work.
+**Table 9.** Differences between the proposal and the delivered work.
 
 | Item | Proposal (16 September 2026) | Delivered |
 |---|---|---|
@@ -273,11 +327,11 @@ The local test set has 50 images and 161 boxes from five clips, so neighbouring 
 | Local test data | 30 to 50 images, held out | 50 images, held out from all training |
 | Filming | Stationary phone or passenger, never the driver | Filmed by the author on foot; no recording while driving |
 | Energy | Energy proxy, or battery drain over a number of inferences | Battery drain over 500 frames (2 percentage points for both models) and an estimate from run time |
-| Blurring of faces and plates | Before storage | Review of local frames still pending (Section 3.8) |
+| Blurring of faces and plates | Before storage | Frames reviewed by the author; no identifiable faces or legible plates found, so no blurring was needed ([Section 3.8](#38-ethics-and-potential-bias)) |
 
 ### 7.3 Future work
 
-The first priority is to reduce the per-frame time, through a smaller input size, frame skipping, and the GPU and NPU backends of LiteRT.js (Yu et al., 2026), and to measure the accuracy cost of each. The second is to collect more varied local data across seasons and road types, to enlarge the test set, and to compare with YOLOv8s. The third is to add self-hosted runtime caching so that the page works offline, followed by the geotagged queue, synchronisation and dashboard map. Continual-learning methods (Wang et al., 2024) could reduce forgetting when new local data are added. Finally, the local frames should be reviewed for faces and number plates, and any found should be blurred before images are shared.
+The first priority is to reduce the per-frame time, through a smaller input size, frame skipping, and the GPU and NPU backends of LiteRT.js (Yu et al., 2026), and to measure the accuracy cost of each. The second is to collect more varied local data across seasons and road types, to enlarge the test set, and to compare with YOLOv8s. The third is to add self-hosted runtime caching so that the page works offline, followed by the geotagged queue, synchronisation and dashboard map. Continual-learning methods (Wang et al., 2024) could reduce forgetting when new local data are added. Finally, if the dataset is extended or shared more widely, new frames should be reviewed for faces and number plates, and any found should be blurred before images are shared.
 
 ## Running the demo
 
@@ -290,17 +344,28 @@ The page was tested in Chrome. Some privacy-oriented browsers block the script t
 
 To run it locally, place `demo.html` and both model files in one folder and start a local server from that folder:
 
-```
+```bash
 python -m http.server 8000 --bind 127.0.0.1
 ```
 
-Then open http://127.0.0.1:8000/demo.html.
+Then open <http://127.0.0.1:8000/demo.html>.
 
 ## Reproducing the experiments
 
-Open the notebook in Google Colab. Run the setup cell first: it installs the packages, mounts Google Drive and downloads the datasets from Roboflow. Then run the sections in order. The Roboflow key must be stored in Colab Secrets under the name `ROBOFLOW_API_KEY`. No credential is stored in this repository. Training used a T4 GPU, seed 0, Ultralytics 8.4.159 for the baseline and 8.4.174 for later runs. The training cells take a long time on a T4, and because library versions and GPU runs differ, rerunning them may give slightly different numbers from those reported above. The local datasets are held in private Roboflow projects and are not published.
+Open the notebook in Google Colab. Run the setup cell first: it installs the packages, mounts Google Drive and downloads the datasets from Roboflow. Then run the sections in order. The Roboflow key must be stored in Colab Secrets under the name `ROBOFLOW_API_KEY`. No credential is stored in this repository. Training used a T4 GPU, seed 0, Ultralytics 8.4.159 for the baseline and 8.4.174 for later runs. The training cells take a long time on a T4, and because library versions and GPU runs differ, rerunning them may give slightly different numbers from those reported above. The local video clips are stored in the author's private Google Drive and the labelled frames are held in private Roboflow projects. Neither is published, so the local results can only be reproduced with access granted by the author.
 
 ## Repository contents
+
+```text
+pothole-edge-ai/
+├── README.md
+├── COEN872_pothole_yolov8_colab.ipynb
+└── docs/
+    ├── demo.html
+    ├── best.tflite
+    ├── best_int8.tflite
+    └── images/
+```
 
 | Path | Description |
 |---|---|
@@ -310,11 +375,11 @@ Open the notebook in Google Colab. Run the setup cell first: it installs the pac
 | `docs/images/` | Example detections used in this README |
 | `COEN872_pothole_yolov8_colab.ipynb` | Training, evaluation and export notebook (Google Colab, T4 GPU) |
 
-The docs folder is served through GitHub Pages, which provides the HTTPS origin that mobile browsers require for camera access. The datasets, video clips and extracted frames are not part of this repository.
+The docs folder is served through GitHub Pages, which provides the HTTPS origin that mobile browsers require for camera access. The datasets, video clips and the full set of extracted frames are not part of this repository; they are kept in the author's private Google Drive and private Roboflow projects. The exceptions are the six local test frames with detections shown in the notebook output and the demo screenshots in `docs/images/`, which are published here.
 
 ## Use of AI tools
 
-An AI assistant (Claude, by Anthropic) was used to help plan the experiments, write and debug the notebook and browser code, and draft this documentation. The data collection, annotation, training runs, measurements on the phone and the decisions reported here are the author's own, and every figure in this document was checked against the saved outputs.
+An AI assistant (Claude, by Anthropic) was used to help plan the experiments, write and debug the notebook and browser code, and draft this documentation. The data collection, annotation, training runs, measurements on the phone and the decisions reported here are the author's own, and every figure in this document was checked against the saved outputs. The AI assistant also helped to locate additional references; the author is responsible for the content and checked the DOIs and links in the reference list against their sources.
 
 ## References
 
@@ -328,19 +393,23 @@ Amri, A. U., & Kusuma, G. P. (2025). Comparative study of pothole detection usin
 
 Ariyo, I. (2026). *FRSC records 10,446 crashes, 5,289 deaths in 2025*. News Agency of Nigeria. https://nannews.ng/frsc-records-10446-crashes-5289-deaths-in-2025/
 
-Arya, D., Maeda, H., Ghosh, S. K., Toshniwal, D., Omata, H., Kashiyama, T., & Sekimoto, Y. (2022). Crowdsensing-based road damage detection challenge (CRDDC'2022). In *Proceedings of the 2022 IEEE International Conference on Big Data (Big Data)*. https://arxiv.org/abs/2211.11362
+Arya, D., Maeda, H., Ghosh, S. K., Toshniwal, D., & Sekimoto, Y. (2024a). RDD2022: A multi-national image dataset for automatic road damage detection. *Geoscience Data Journal, 11*(4), 846-862. https://doi.org/10.1002/gdj3.260
 
-Arya, D., Maeda, H., Ghosh, S. K., Toshniwal, D., & Sekimoto, Y. (2024a). RDD2022: A multi-national image dataset for automatic road damage detection. *Geoscience Data Journal, 11*(4), 846–862. https://doi.org/10.1002/gdj3.260
+Arya, D., Maeda, H., Ghosh, S. K., Toshniwal, D., Omata, H., Kashiyama, T., & Sekimoto, Y. (2022). Crowdsensing-based road damage detection challenge (CRDDC'2022). In *Proceedings of the 2022 IEEE International Conference on Big Data (Big Data)*. https://doi.org/10.1109/BigData55660.2022.10021040
 
 Arya, D., Omata, H., Maeda, H., & Sekimoto, Y. (2024b). ORDDC'2024: State of the art solutions for optimized road damage detection. In *Proceedings of the 2024 IEEE International Conference on Big Data (BigData)*. https://doi.org/10.1109/BigData62323.2024.10825254
 
 Bello-Salau, H., Onumanyi, A. J., Adebiyi, R. F., Adekale, A. D., Bello-Salahuddeen, R., & Ajayi, O.-O. (2023). A critical appraisal of various implementation approaches for real-time pothole anomaly detection: Toward safer roads in developing nations. *Engineering Proceedings, 56*(1), Article 301. https://doi.org/10.3390/ASEC2023-15519
 
-Dwivedi, S. K., Arya, D., & Sekimoto, Y. (2024). Road damage detection across borders: Federated learning insights from Japan, China, Norway and the USA. In *Proceedings of the 2024 IEEE Smart World Congress (SWC)*.
+Dwivedi, S. K., Arya, D., & Sekimoto, Y. (2024). Road damage detection across borders: Federated learning insights from Japan, China, Norway and the USA. In *Proceedings of the 2024 IEEE Smart World Congress (SWC)*. https://doi.org/10.1109/SWC62898.2024.00223
 
 Gazette Nigeria. (2023, July 9). *FERMA to repair 36,000km federal roads: Official*. https://gazettengr.com/ferma-to-repair-36000km-federal-roads-official/
 
 Gholami, A., Kim, S., Dong, Z., Yao, Z., Mahoney, M. W., & Keutzer, K. (2022). A survey of quantization methods for efficient neural network inference. In G. K. Thiruvathukal, Y.-H. Lu, J. Kim, Y. Chen, & B. Chen (Eds.), *Low-power computer vision: Improve the efficiency of artificial intelligence*. Chapman and Hall/CRC. https://doi.org/10.1201/9781003162810
+
+GitHub. (n.d.). *GitHub Pages limits*. GitHub Docs. Retrieved October 18, 2026, from https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits
+
+Google. (n.d.). *Colaboratory: Frequently asked questions*. Retrieved October 18, 2026, from https://research.google.com/colaboratory/faq.html
 
 Jocher, G., Chaurasia, A., & Qiu, J. (2023). *YOLO by Ultralytics* (Version 8.0.0) [Computer software]. https://github.com/ultralytics/ultralytics
 
@@ -350,17 +419,29 @@ Leadership. (2026). *597 died in road crashes in 1 month: FRSC*. https://leaders
 
 Ma, N., Fan, J., Wang, W., Wu, J., Jiang, Y., Xie, L., & Fan, R. (2022). Computer vision for road imaging and pothole detection: A state-of-the-art review of systems and algorithms. *Transportation Safety and Environment, 4*(4), Article tdac026. https://doi.org/10.1093/tse/tdac026
 
-Mehajabin, N., Ma, Z., Wang, Y., Tohidypour, H. R., & Nasiopoulos, P. (2022). Real-time deep learning based road deterioration detection for smart cities. In *Proceedings of the 2022 18th International Conference on Wireless and Mobile Computing, Networking and Communications (WiMob)* (pp. 321–326). IEEE.
+Mehajabin, N., Ma, Z., Wang, Y., Tohidypour, H. R., & Nasiopoulos, P. (2022). Real-time deep learning based road deterioration detection for smart cities. In *Proceedings of the 2022 18th International Conference on Wireless and Mobile Computing, Networking and Communications (WiMob)* (pp. 321-326). IEEE. https://doi.org/10.1109/WiMob55322.2022.9941685
+
+Michelin Mobility Intelligence. (n.d.). *Automated road assessments with Michelin Better Roads* [Product summary]. <https://44151349.fs1.hubspotusercontent-eu1.net/hubfs/44151349/Better%20Roads%20Collateral/BetterRoadSummary(one-sheet).pdf>
 
 Oluka, P. (2026, August 19). *Nigeria internet subscriptions rise to 157.4 million as broadband penetration hits 56.1% in May*. Techeconomy. https://techeconomy.ng/nigeria-internet-subscriptions-rise-to-1574-million-as-broadband-penetration-hits-561-in-may
 
 Rey, L., Bernardos, A. M., Dobrzycki, A. D., Carramiñana, D., Bergesio, L., Besada, J. A., & Casar, J. R. (2025). A performance analysis of You Only Look Once models for deployment on constrained computational edge devices in drone applications. *Electronics, 14*(3), Article 638. https://doi.org/10.3390/electronics14030638
 
+RoadBounce. (2026). *Pothole Guard* [Mobile app]. Google Play. https://play.google.com/store/apps/details?id=com.definitics.rb.pothole.guard
+
+Roboflow. (n.d.). *Roboflow pricing: Free, Core & Enterprise plans*. Retrieved October 18, 2026, from https://roboflow.com/pricing
+
 Safyari, Y., Mahdianpari, M., & Shiri, H. (2024). A review of vision-based pothole detection methods using computer vision and machine learning. *Sensors, 24*(17), Article 5652. https://doi.org/10.3390/s24175652
+
+TechCabal. (2025, February 11). *MTN Nigeria raises internet prices*. https://techcabal.com/2025/02/11/mtn-nigeria-raises-internet-prices/
 
 Techeconomy. (2026, September 10). *Nigeria's active mobile subscriptions rise to 195.11m as data drives telecom growth*. https://techeconomy.ng/mtn-crosses-100m-subscribers-as-nigerias-mobile-lines-hit-19511-million
 
-Terven, J. R., Cordova-Esparza, D. M., & Romero-Gonzalez, J. A. (2023). A comprehensive review of YOLO architectures in computer vision: From YOLOv1 to YOLOv8 and YOLO-NAS. *Machine Learning and Knowledge Extraction, 5*(4), 1680-1716.
+Terven, J. R., Cordova-Esparza, D. M., & Romero-Gonzalez, J. A. (2023). A comprehensive review of YOLO architectures in computer vision: From YOLOv1 to YOLOv8 and YOLO-NAS. *Machine Learning and Knowledge Extraction, 5*(4), 1680-1716. https://doi.org/10.3390/make5040083
+
+vialytics GmbH. (2024). *vialytics Condition* [Mobile app]. Apple App Store. https://apps.apple.com/us/app/-/id1644659020
+
+WageIndicator Foundation. (2026). *Minimum wage: Nigeria*. https://wageindicator.org/en-ng/ai/work-in-nigeria/minimum-wage/
 
 Wang, L., Zhang, X., Su, H., & Zhu, J. (2024). *A comprehensive survey of continual learning: Theory, method and application* (arXiv:2302.00487v3). arXiv. https://arxiv.org/abs/2302.00487
 
